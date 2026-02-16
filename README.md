@@ -1,13 +1,13 @@
 # Interhuman Agent Skills
 
-Agent Skills for the [Interhuman API](https://docs.interhuman.ai)—authentication, video upload analysis, and real-time streaming analysis.
+Agent Skills for the [Interhuman API](https://docs.interhuman.ai) — authentication, video upload analysis, and real-time streaming analysis.
 
-Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and [other agents supported by the skills CLI](https://github.com/vercel-labs/skills#supported-agents).
+Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and other agents.
 
 ## Install a Skill
 
 ```bash
-npx skills add InterhumanAI/interhuman-agent-skills
+npx skills add InterhumanAI/skills
 ```
 
 Install directly using the InterhumanAI organization name.
@@ -16,13 +16,13 @@ Install directly using the InterhumanAI organization name.
 
 ```bash
 # GitHub shorthand (owner/repo)
-npx skills add InterhumanAI/interhuman-agent-skills
+npx skills add InterhumanAI/skills
 
 # Full GitHub URL
-npx skills add https://github.com/InterhumanAI/interhuman-agent-skills
+npx skills add https://github.com/InterhumanAI/skills
 
 # Direct path to a skill
-npx skills add https://github.com/InterhumanAI/interhuman-agent-skills/tree/main/skills/interhuman-authentication
+npx skills add https://github.com/InterhumanAI/skills/tree/main/skills/interhuman-authentication
 ```
 
 ### Options
@@ -39,16 +39,16 @@ npx skills add https://github.com/InterhumanAI/interhuman-agent-skills/tree/main
 
 ```bash
 # List skills in this repository
-npx skills add InterhumanAI/interhuman-agent-skills --list
+npx skills add InterhumanAI/skills --list
 
 # Install specific skills
-npx skills add InterhumanAI/interhuman-agent-skills --skill interhuman-authentication --skill interhuman-post-processing
+npx skills add InterhumanAI/skills --skill interhuman-authentication --skill interhuman-post-processing
 
 # Install all skills
-npx skills add InterhumanAI/interhuman-agent-skills --skill '*'
+npx skills add InterhumanAI/skills --skill '*'
 
 # Install to Cursor only (global)
-npx skills add InterhumanAI/interhuman-agent-skills -g -a cursor -y
+npx skills add InterhumanAI/skills -g -a cursor -y
 ```
 
 ## Skills in this repo
@@ -63,7 +63,6 @@ All skills are strict API wrappers: they return raw JSON from the Interhuman API
 
 ## Related
 
+- [Interhuman API docs](https://docs.interhuman.ai)
 - [Agent Skills specification](https://agentskills.io)
 - [Skills directory](https://skills.sh)
-- [skills CLI (vercel-labs/skills)](https://github.com/vercel-labs/skills)
-- [Interhuman API docs](https://docs.interhuman.ai)
