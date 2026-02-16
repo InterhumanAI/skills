@@ -7,22 +7,22 @@ Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and [other
 ## Install a Skill
 
 ```bash
-npx skills add <owner>/interhuman-agent-skills
+npx skills add InterhumanAI/interhuman-agent-skills
 ```
 
-Replace `<owner>` with your GitHub username or organization (e.g. `interhuman/interhuman-agent-skills`).
+Install directly using the InterhumanAI organization name.
 
 ### Source formats
 
 ```bash
 # GitHub shorthand (owner/repo)
-npx skills add <owner>/interhuman-agent-skills
+npx skills add InterhumanAI/interhuman-agent-skills
 
 # Full GitHub URL
-npx skills add https://github.com/<owner>/interhuman-agent-skills
+npx skills add https://github.com/InterhumanAI/interhuman-agent-skills
 
 # Direct path to a skill
-npx skills add https://github.com/<owner>/interhuman-agent-skills/tree/main/skills/interhuman-authentication
+npx skills add https://github.com/InterhumanAI/interhuman-agent-skills/tree/main/skills/interhuman-authentication
 ```
 
 ### Options
@@ -39,16 +39,16 @@ npx skills add https://github.com/<owner>/interhuman-agent-skills/tree/main/skil
 
 ```bash
 # List skills in this repository
-npx skills add <owner>/interhuman-agent-skills --list
+npx skills add InterhumanAI/interhuman-agent-skills --list
 
 # Install specific skills
-npx skills add <owner>/interhuman-agent-skills --skill interhuman-authentication --skill interhuman-post-processing
+npx skills add InterhumanAI/interhuman-agent-skills --skill interhuman-authentication --skill interhuman-post-processing
 
 # Install all skills
-npx skills add <owner>/interhuman-agent-skills --skill '*'
+npx skills add InterhumanAI/interhuman-agent-skills --skill '*'
 
 # Install to Cursor only (global)
-npx skills add <owner>/interhuman-agent-skills -g -a cursor -y
+npx skills add InterhumanAI/interhuman-agent-skills -g -a cursor -y
 ```
 
 ## Skills in this repo
@@ -57,7 +57,7 @@ npx skills add <owner>/interhuman-agent-skills -g -a cursor -y
 |-------|-------------|
 | **interhuman-authentication** | Generate short-lived bearer tokens via `POST /v0/auth`. Use first; required by the other two skills. |
 | **interhuman-post-processing** | Analyze pre-recorded video files via `POST /v0/upload/analyze`. Returns detected social signals as raw JSON. |
-| **interhuman-stream** | Real-time analysis of live video via WebSocket `/v0/stream/analyze`. Relays server messages as received. |
+| **interhuman-stream** | Real-time analysis of live video via `ws /v0/stream/analyze`. Relays server messages as received. |
 
 All skills are strict API wrappers: they return raw JSON from the Interhuman API without modification.
 
