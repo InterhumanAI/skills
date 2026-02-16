@@ -27,25 +27,27 @@ Do NOT use this skill for:
 
 ## Authentication
 
-Before using this skill, you must obtain an access token using the `interhuman-authentication` skill with the `interhumanai.stream` scope. Use the returned `access_token` in the `Authorization` header during WebSocket handshake as `Bearer <access_token>`.
+Before using this skill, you must obtain an access token using the `interhuman-authentication` skill with the `interhumanai.stream` scope. 
+
+**Important**: Browser WebSocket API cannot send custom headers. For browser-based applications, pass the token via the `protocols` parameter (see JavaScript example below). For Node.js/Python backends, use the `Authorization` header in connection options.
 
 ## WebSocket Connection
 
 ### Endpoint Details
 
 - **WebSocket URL**: `wss://api.interhuman.ai/v0/stream/analyze`
-- **Authentication**: Bearer token in `Authorization` header during WebSocket handshake
+- **Authentication**: Bearer token passed via `Sec-WebSocket-Protocol` header (browsers) or `Authorization` header (Node.js/Python)
 - **Protocol**: WebSocket (WSS)
 
-### Connection Example: JavaScript
+### Connection Example: JavaScript (Browser)
+
+**Note**: Browser WebSocket API cannot send custom headers. Use the `protocols` parameter to pass the token:
 
 ```javascript
 const token = "YOUR_ACCESS_TOKEN";
-const socket = new WebSocket("wss://api.interhuman.ai/v0/stream/analyze", {
-  headers: { 
-    Authorization: `Bearer ${token}` 
-  }
-});
+// Pass token via protocols parameter (Sec-WebSocket-Protocol header)
+const protocols = ['access_token', token];
+const socket = new WebSocket("wss://api.interhuman.ai/v0/stream/analyze", protocols);
 
 socket.onopen = () => console.log("WebSocket connected");
 
@@ -56,6 +58,29 @@ socket.onmessage = (event) => {
 
 socket.onerror = (error) => console.error("WebSocket error:", error);
 socket.onclose = () => console.log("WebSocket closed");
+```
+
+### Connection Example: JavaScript (Node.js)
+
+For Node.js environments using the `ws` library, you can use custom headers:
+
+```javascript
+import WebSocket from 'ws';
+
+const token = "YOUR_ACCESS_TOKEN";
+const socket = new WebSocket("wss://api.interhuman.ai/v0/stream/analyze", {
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+});
+
+socket.on('open', () => console.log("WebSocket connected"));
+socket.on('message', (data) => {
+  const message = JSON.parse(data.toString());
+  console.log("Server message:", message);
+});
+socket.on('error', (error) => console.error("WebSocket error:", error));
+socket.on('close', () => console.log("WebSocket closed"));
 ```
 
 ### Connection Example: Python
