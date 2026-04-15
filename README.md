@@ -1,6 +1,6 @@
 # Interhuman Agent Skills
 
-Agent Skills for the [Interhuman API](https://docs.interhuman.ai) — authentication, video upload analysis, and real-time streaming analysis.
+Agent Skills for the [Interhuman API](https://docs.interhuman.ai) — authentication and video upload analysis.
 
 Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and other agents.
 
@@ -55,11 +55,21 @@ npx skills add InterhumanAI/skills -g -a cursor -y
 
 | Skill | Description |
 |-------|-------------|
-| **interhuman-authentication** | Generate short-lived bearer tokens via `POST /v0/auth`. Use first; required by the other two skills. |
-| **interhuman-post-processing** | Analyze pre-recorded video files via `POST /v0/upload/analyze`. Returns detected social signals as raw JSON. |
-| **interhuman-stream** | Real-time analysis of live video via `ws /v0/stream/analyze`. Relays server messages as received. |
+| **interhuman-authentication** | Generate short-lived bearer tokens via `POST /v1/auth`. Use first; required before calling upload analysis. |
+| **interhuman-post-processing** | Analyze pre-recorded video files via `POST /v1/upload/analyze`. Returns raw JSON, including `signals` and optional quality fields. |
 
 All skills are strict API wrappers: they return raw JSON from the Interhuman API without modification.
+
+## V1 upload features
+
+- Upload endpoint accepts `multipart/form-data` with required `file`.
+- Optional `include[]` values:
+  - `conversation_quality_overall`
+  - `conversation_quality_timeline`
+- Typical response fields:
+  - `signals` (always present)
+  - `engagement_state` (always present)
+  - `conversation_quality` (optional, when requested)
 
 ## Related
 

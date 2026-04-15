@@ -1,6 +1,6 @@
 ---
 name: interhuman-authentication
-description: Wrapper for Interhuman API POST /v0/auth endpoint. Generates short-lived bearer access tokens using API key credentials. Use when the user needs to authenticate before calling Interhuman API endpoints. Returns the exact JSON response from the API without modification.
+description: Wrapper for Interhuman API POST /v1/auth endpoint. Generates short-lived bearer access tokens using API key credentials. Use when the user needs to authenticate before calling Interhuman API endpoints. Returns the exact JSON response from the API without modification.
 ---
 
 # Interhuman Authentication
@@ -12,24 +12,23 @@ Wrapper for the Interhuman API authentication endpoint that generates short-live
 Use this skill when:
 - You need to obtain an access token before calling Interhuman API endpoints
 - The user has API key credentials (key_id and key_secret) from the Interhuman dashboard
-- You need to authenticate for either upload or stream endpoints
+- You need to authenticate for upload analysis endpoints
 
-This skill should be called first, before using `interhuman-post-processing` or `interhuman-stream` skills.
+This skill should be called first, before using `interhuman-post-processing`.
 
 ## Required Inputs
 
 1. **key_id** (string): API key ID from the Interhuman dashboard
 2. **key_secret** (string): API key secret from the Interhuman dashboard
 3. **scopes** (array): List of requested scopes. At least one scope must be provided.
-   - `interhumanai.upload` - For `/v0/upload/analyze` endpoint
-   - `interhumanai.stream` - For `/v0/stream/analyze` endpoint
+   - `interhumanai.upload` - For `/v1/upload/analyze` endpoint
 
 ## API Call Instructions
 
 ### Endpoint Details
 
 - **Base URL**: `https://api.interhuman.ai`
-- **Endpoint**: `/v0/auth`
+- **Endpoint**: `/v1/auth`
 - **Method**: POST
 - **Content-Type**: `application/json`
 - **Authentication**: None required (uses API key credentials in request body)
@@ -41,7 +40,7 @@ Send a JSON request body with `key_id`, `key_secret`, and `scopes` array.
 ### Example: cURL
 
 ```bash
-curl -X POST https://api.interhuman.ai/v0/auth \
+curl -X POST https://api.interhuman.ai/v1/auth \
   -H "Content-Type: application/json" \
   -d '{
     "key_id": "your_key_id",
@@ -56,7 +55,7 @@ curl -X POST https://api.interhuman.ai/v0/auth \
 import requests
 
 response = requests.post(
-    "https://api.interhuman.ai/v0/auth",
+    "https://api.interhuman.ai/v1/auth",
     json={
         "key_id": "your_key_id",
         "key_secret": "your_key_secret",
@@ -71,7 +70,7 @@ print(response.json())
 ### Example: JavaScript/Node.js
 
 ```javascript
-const response = await fetch("https://api.interhuman.ai/v0/auth", {
+const response = await fetch("https://api.interhuman.ai/v1/auth", {
   method: "POST",
   headers: {
     "Content-Type": "application/json"
@@ -111,9 +110,10 @@ The API returns a JSON object with:
 
 On error, the API returns JSON with:
 
-- **detail** (string): Error message
-- **status_code** (integer): HTTP status code
-- **extra** (object): Additional error information
+- **error_id** (string): Stable error identifier
+- **message** (string): Error message
+- **correlation_id** (string, optional): Request correlation identifier
+- **link** (string, optional): Link to additional error documentation
 
 ### Status Codes
 

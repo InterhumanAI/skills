@@ -1,6 +1,6 @@
 ---
 name: interhuman-post-processing
-description: Wrapper for Interhuman API POST /v0/upload/analyze endpoint. Analyzes completed video files and returns raw JSON responses with detected social signals. Use when the user wants to analyze a pre-recorded video file (not live streams). Returns the exact JSON response from the API without modification.
+description: Wrapper for Interhuman API POST /v1/upload/analyze endpoint. Analyzes completed video files and returns raw JSON responses with detected social signals. Use when the user wants to analyze a pre-recorded video file. Returns the exact JSON response from the API without modification.
 ---
 
 # Interhuman Post-Processing Analysis
@@ -15,7 +15,6 @@ Use this skill when:
 - You need to get all detected signals for the entire video at once
 
 Do NOT use this skill for:
-- Live video streams (use `interhuman-stream` instead)
 - Real-time analysis of ongoing video feeds
 
 ## Required Inputs
@@ -34,21 +33,28 @@ Before using this skill, you must obtain an access token using the `interhuman-a
 ### Endpoint Details
 
 - **Base URL**: `https://api.interhuman.ai`
-- **Endpoint**: `/v0/upload/analyze`
+- **Endpoint**: `/v1/upload/analyze`
 - **Method**: POST
 - **Content-Type**: `multipart/form-data`
 - **Authentication**: Bearer token in `Authorization` header
 
 ### Request Format
 
-Send the video file as `multipart/form-data` with a single field named `file` containing the binary video data.
+Send the video file as `multipart/form-data` with a required field named `file` containing the binary video data.
+
+You can optionally include `include[]` values to request conversation quality outputs:
+
+- `conversation_quality_overall`
+- `conversation_quality_timeline`
 
 ### Example: cURL
 
 ```bash
-curl -X POST https://api.interhuman.ai/v0/upload/analyze \
+curl -X POST https://api.interhuman.ai/v1/upload/analyze \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -F "file=@/path/to/video.mp4;type=video/mp4"
+  -F "file=@/path/to/video.mp4;type=video/mp4" \
+  -F "include[]=conversation_quality_overall" \
+  -F "include[]=conversation_quality_timeline"
 ```
 
 ### Example: Python
@@ -62,9 +68,10 @@ video_path = "/path/to/video.mp4"
 with open(video_path, "rb") as f:
     files = {"file": (os.path.basename(video_path), f, "video/mp4")}
     response = requests.post(
-        "https://api.interhuman.ai/v0/upload/analyze",
+        "https://api.interhuman.ai/v1/upload/analyze",
         headers={"Authorization": f"Bearer {access_token}"},
         files=files,
+        data=[("include[]", "conversation_quality_overall")],
         timeout=300,
     )
 
@@ -82,7 +89,7 @@ import fetch from "node-fetch";
 const formData = new FormData();
 formData.append("file", fs.createReadStream("path/to/video.mp4"));
 
-const response = await fetch("https://api.interhuman.ai/v0/upload/analyze", {
+const response = await fetch("https://api.interhuman.ai/v1/upload/analyze", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.ACCESS_TOKEN}`
@@ -96,7 +103,13 @@ console.log(json);
 
 ## Response Format
 
-The API returns a JSON object with a `signals` array. Each signal object contains:
+The API returns a JSON object where:
+
+- `signals` is required
+- `engagement_state` may be present
+- `conversation_quality` may be present when requested via `include[]`
+
+Each signal object in `signals` contains:
 
 - **type** (string): The detected social signal type. Possible values: `agreement`, `confidence`, `confusion`, `disagreement`, `disengagement`, `engagement`, `frustration`, `hesitation`, `interest`, `skepticism`, `stress`, `uncertainty`
 - **start** (number): Start time of the signal in seconds relative to video start
@@ -125,9 +138,10 @@ The API returns a JSON object with a `signals` array. Each signal object contain
 
 On error, the API returns JSON with:
 
-- **detail** (string): Error message
-- **status_code** (integer): HTTP status code
-- **extra** (object): Additional error information
+- **error_id** (string): Stable error identifier
+- **message** (string): Error message
+- **correlation_id** (string, optional): Request correlation identifier
+- **link** (string, optional): Link to additional error documentation
 
 ### Status Codes
 
@@ -137,6 +151,7 @@ On error, the API returns JSON with:
 - `403`: Forbidden (token lacks required scope)
 - `413`: Payload too large (file exceeds 32 MB)
 - `422`: Unprocessable entity (file missing or invalid)
+- `429`: Too many requests
 - `500`: Internal server error
 
 ## Output Rules
