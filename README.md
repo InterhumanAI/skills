@@ -1,6 +1,6 @@
 # Interhuman Agent Skills
 
-Agent Skills for the [Interhuman API](https://docs.interhuman.ai) — authentication and video upload analysis.
+Agent Skills for the [Interhuman API](https://docs.interhuman.ai) - video upload analysis.
 
 Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and other agents.
 
@@ -22,7 +22,7 @@ npx skills add InterhumanAI/skills
 npx skills add https://github.com/InterhumanAI/skills
 
 # Direct path to a skill
-npx skills add https://github.com/InterhumanAI/skills/tree/main/skills/interhuman-authentication
+npx skills add https://github.com/InterhumanAI/skills/tree/main/skills/interhuman-post-processing
 ```
 
 ### Options
@@ -42,7 +42,7 @@ npx skills add https://github.com/InterhumanAI/skills/tree/main/skills/interhuma
 npx skills add InterhumanAI/skills --list
 
 # Install specific skills
-npx skills add InterhumanAI/skills --skill interhuman-authentication --skill interhuman-post-processing
+npx skills add InterhumanAI/skills --skill interhuman-post-processing
 
 # Install all skills
 npx skills add InterhumanAI/skills --skill '*'
@@ -55,8 +55,9 @@ npx skills add InterhumanAI/skills -g -a cursor -y
 
 | Skill | Description |
 |-------|-------------|
-| **interhuman-authentication** | Generate short-lived bearer tokens via `POST /v1/auth`. Use first; required before calling upload analysis. |
 | **interhuman-post-processing** | Analyze pre-recorded video files via `POST /v1/upload/analyze`. Returns raw JSON, including `signals` and optional quality fields. |
+
+Authentication for integrations: send your API key directly as `Authorization: Bearer <api_key>` for any endpoint.
 
 All skills are strict API wrappers: they return raw JSON from the Interhuman API without modification.
 

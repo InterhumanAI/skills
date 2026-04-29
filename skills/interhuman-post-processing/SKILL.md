@@ -19,14 +19,18 @@ Do NOT use this skill for:
 
 ## Required Inputs
 
-1. **API Access Token**: Bearer token obtained from the `interhuman-authentication` skill (use `interhumanai.upload` scope)
+1. **API Key**: Use your API key as bearer credential in `Authorization: Bearer <api_key>`
 2. **Video File**: Binary video file to analyze
    - Size: 10 KB minimum, 32 MB maximum
    - Formats: mp4, avi, mov, mkv, mpeg-ts, mpeg-2-ts, webm
 
 ## Authentication
 
-Before using this skill, you must obtain an access token using the `interhuman-authentication` skill with the `interhumanai.upload` scope. Use the returned `access_token` in the `Authorization` header as `Bearer <access_token>`.
+Direct API key usage in the `Authorization` header:
+
+- `Authorization: Bearer <api_key>`
+
+Legacy compatibility: if an existing integration still uses token exchange, please switch the API key directly in every endpoint.
 
 ## API Call Instructions
 
@@ -36,7 +40,7 @@ Before using this skill, you must obtain an access token using the `interhuman-a
 - **Endpoint**: `/v1/upload/analyze`
 - **Method**: POST
 - **Content-Type**: `multipart/form-data`
-- **Authentication**: Bearer token in `Authorization` header
+- **Authentication**: Bearer credential in `Authorization` header.
 
 ### Request Format
 
@@ -51,7 +55,7 @@ You can optionally include `include[]` values to request conversation quality ou
 
 ```bash
 curl -X POST https://api.interhuman.ai/v1/upload/analyze \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@/path/to/video.mp4;type=video/mp4" \
   -F "include[]=conversation_quality_overall" \
   -F "include[]=conversation_quality_timeline"
@@ -60,16 +64,17 @@ curl -X POST https://api.interhuman.ai/v1/upload/analyze \
 ### Example: Python
 
 ```python
+import os
 import requests
 
-access_token = "YOUR_ACCESS_TOKEN"
+api_key = "YOUR_API_KEY"
 video_path = "/path/to/video.mp4"
 
 with open(video_path, "rb") as f:
     files = {"file": (os.path.basename(video_path), f, "video/mp4")}
     response = requests.post(
         "https://api.interhuman.ai/v1/upload/analyze",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers={"Authorization": f"Bearer {api_key}"},
         files=files,
         data=[("include[]", "conversation_quality_overall")],
         timeout=300,
@@ -92,7 +97,7 @@ formData.append("file", fs.createReadStream("path/to/video.mp4"));
 const response = await fetch("https://api.interhuman.ai/v1/upload/analyze", {
   method: "POST",
   headers: {
-    Authorization: `Bearer ${process.env.ACCESS_TOKEN}`
+    Authorization: `Bearer ${process.env.INTERHUMAN_API_KEY}`
   },
   body: formData
 });
@@ -147,8 +152,8 @@ On error, the API returns JSON with:
 
 - `200`: Success
 - `400`: Bad request (invalid file format or parameters)
-- `401`: Unauthorized (missing or invalid token)
-- `403`: Forbidden (token lacks required scope)
+- `401`: Unauthorized (missing or invalid bearer credential)
+- `403`: Forbidden (credential lacks required scope)
 - `413`: Payload too large (file exceeds 32 MB)
 - `422`: Unprocessable entity (file missing or invalid)
 - `429`: Too many requests
