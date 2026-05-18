@@ -1,4 +1,4 @@
----
+  ---
 name: interhuman-stream-analyze
 description: Connect to Interhuman v1 WebSocket stream analyze for real-time video segment analysis. Use for live streams, chunked video, WebSocket, or /v1/stream/analyze. Returns verbatim JSON event envelopes without modification.
 ---
@@ -26,6 +26,12 @@ Do NOT use this skill for:
    - Duration: at least **3 seconds** per segment
    - Size: maximum **32 MB** per segment
    - Formats: mp4, avi, mov, mkv, mpeg-ts, mpeg-2-ts, webm
+
+   **Content requirements** (both video and audio must be meaningful):
+
+   - Include real visual content; a valid segment with no meaningful video (e.g. a black or blank screen) is discouraged.
+   - Include real audio; a valid segment with no meaningful audio (e.g. muted or silent track) is discouraged.
+   - The API analyzes observable social cues from picture and sound—placeholder or empty media reduces result quality.
 
 ## Authentication
 
@@ -64,15 +70,13 @@ Send a JSON text frame with optional fields:
 
 ```json
 {
-  "include": ["conversation_quality_overall", "conversation_quality_timeline"],
-  "goal_dimensions": ["clarity", "authority"]
+  "include": ["conversation_quality_overall", "conversation_quality_timeline"]
 }
 ```
 
 | Field | Values | Purpose |
 |-------|--------|---------|
 | `include` | `conversation_quality_overall`, `conversation_quality_timeline` | Opt in to `conversation_quality.updated` event sections |
-| `goal_dimensions` | `clarity`, `authority`, `energy`, `rapport`, `learning` | Flag CQI dimensions as session goals |
 
 - `conversation_quality_overall`: cumulative CQI across every window emitted so far in the session
 - `conversation_quality_timeline`: single per-window CQI entry for the current analysis window
@@ -116,12 +120,7 @@ async def main():
     headers = {"Authorization": f"Bearer {API_KEY}"}
     async with websockets.connect(WS_URL, additional_headers=headers) as ws:
         await ws.send(
-            json.dumps(
-                {
-                    "include": ["conversation_quality_overall"],
-                    "goal_dimensions": ["clarity", "authority"],
-                }
-            )
+            json.dumps({"include": ["conversation_quality_overall"]})
         )
 
         with open(VIDEO_PATH, "rb") as f:
@@ -148,12 +147,7 @@ const ws = new WebSocket("wss://api.interhuman.ai/v1/stream/analyze", {
 });
 
 ws.on("open", () => {
-  ws.send(
-    JSON.stringify({
-      include: ["conversation_quality_overall"],
-      goal_dimensions: ["clarity", "authority"],
-    })
-  );
+  ws.send(JSON.stringify({ include: ["conversation_quality_overall"] }));
   ws.send(fs.readFileSync(videoPath));
 });
 

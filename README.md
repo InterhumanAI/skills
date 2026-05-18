@@ -77,7 +77,7 @@ All skills are strict API wrappers: they return raw JSON from the Interhuman API
 ## V1 stream features
 
 - WebSocket URL: `wss://api.interhuman.ai/v1/stream/analyze`
-- Client sends binary video segments (min 3s, max 32 MB each) and optional JSON session config (`include`, `goal_dimensions`)
+- Client sends binary video segments (min 3s, max 32 MB each) and optional JSON session config (`include`)
 - Server emits typed envelopes: `signal.detected`, `engagement.updated`, `conversation_quality.updated`, `error`
 - Auth: `Authorization: Bearer <api_key>` or `Sec-WebSocket-Protocol: <api_key>`
 - Strict wrapper: skills return raw JSON from the API without modification

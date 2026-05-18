@@ -24,6 +24,12 @@ Do NOT use this skill for:
    - Size: 10 KB minimum, 32 MB maximum
    - Formats: mp4, avi, mov, mkv, mpeg-ts, mpeg-2-ts, webm
 
+   **Content requirements** (both video and audio must be meaningful):
+
+   - Include real visual content; a valid file with no meaningful video (e.g. a black or blank screen) is discouraged.
+   - Include real audio; a valid file with no meaningful audio (e.g. muted or silent track) is discouraged.
+   - The API analyzes observable social cues from picture and sound—placeholder or empty media reduces result quality.
+
 ## Authentication
 
 Direct API key usage in the `Authorization` header:
