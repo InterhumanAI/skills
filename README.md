@@ -1,6 +1,6 @@
 # Interhuman Agent Skills
 
-Agent Skills for the [Interhuman API](https://docs.interhuman.ai) - video upload analysis.
+Agent Skills for the [Interhuman API](https://docs.interhuman.ai) — video upload and real-time stream analysis.
 
 Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and other agents.
 
@@ -43,6 +43,7 @@ npx skills add InterhumanAI/skills --list
 
 # Install specific skills
 npx skills add InterhumanAI/skills --skill interhuman-post-processing
+npx skills add InterhumanAI/skills --skill interhuman-stream-analyze
 
 # Install all skills
 npx skills add InterhumanAI/skills --skill '*'
@@ -56,6 +57,7 @@ npx skills add InterhumanAI/skills -g -a cursor -y
 | Skill | Description |
 |-------|-------------|
 | **interhuman-post-processing** | Analyze pre-recorded video files via `POST /v1/upload/analyze`. Returns raw JSON, including `signals` and optional quality fields. |
+| **interhuman-stream-analyze** | Analyze live or chunked video via WebSocket `wss://api.interhuman.ai/v1/stream/analyze`. Returns verbatim v1 event envelopes (`signal.detected`, `engagement.updated`, etc.). |
 
 Authentication for integrations: send your API key directly as `Authorization: Bearer <api_key>` for any endpoint.
 
@@ -71,6 +73,14 @@ All skills are strict API wrappers: they return raw JSON from the Interhuman API
   - `signals` (always present)
   - `engagement_state` (always present)
   - `conversation_quality` (optional, when requested)
+
+## V1 stream features
+
+- WebSocket URL: `wss://api.interhuman.ai/v1/stream/analyze`
+- Client sends binary video segments (min 3s, max 32 MB each) and optional JSON session config (`include`, `goal_dimensions`)
+- Server emits typed envelopes: `signal.detected`, `engagement.updated`, `conversation_quality.updated`, `error`
+- Auth: `Authorization: Bearer <api_key>` or `Sec-WebSocket-Protocol: <api_key>`
+- Strict wrapper: skills return raw JSON from the API without modification
 
 ## Related
 

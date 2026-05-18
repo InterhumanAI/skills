@@ -15,7 +15,7 @@ Use this skill when:
 - You need to get all detected signals for the entire video at once
 
 Do NOT use this skill for:
-- Real-time analysis of ongoing video feeds
+- Real-time analysis of ongoing video feeds — use **interhuman-stream-analyze** (`/v1/stream/analyze`) instead
 
 ## Required Inputs
 
