@@ -165,11 +165,12 @@ const ws = new WebSocket("wss://api.interhuman.ai/v1/stream/analyze", apiKey);
 
 ## Building a Browser App (optional)
 
-If media is captured in a **browser or any untrusted client** (live camera/microphone, end-user app), do not connect the client directly to Interhuman — that leaks the API key. Read [production-architecture.md](production-architecture.md) before generating code. Non-negotiable rules:
+If media is captured in a **browser or any untrusted client** (live camera/microphone, end-user app), never ship the API key to it. Read [production-architecture.md](production-architecture.md) before generating code. Two valid architectures — choose by where the analysis events should be delivered:
 
-1. The API key stays server-side; the browser talks to **your** WebSocket proxy, which relays to Interhuman.
-2. The proxy is a long-lived process (Cloud Run, Fly.io, VM) — never a serverless function.
-3. Send `MediaRecorder` timesliced segments verbatim; never re-slice or reassemble media server-side.
+1. **Direct from the browser with a client token** (simplest): your backend mints a short-lived, capped token via `POST /v1/client_tokens` and hands it to the browser, which opens the WebSocket to Interhuman directly (`access_token` subprotocol, or the TypeScript SDK's `StreamClient`).
+2. **Proxy through your backend**: when your backend should receive the events (server-side value-add, storage) or handle the media. Must be a long-lived process that relays segments verbatim.
+
+On either path, send `MediaRecorder` timesliced segments exactly as produced; never re-slice or reassemble media in transit.
 
 Skip this section when calling the endpoint from a trusted server-side process.
 
@@ -199,4 +200,4 @@ Each server message should be passed through verbatim as a single JSON object.
 ## Additional Resources
 
 - [reference.md](reference.md) — v1 envelope schemas and example payloads
-- [production-architecture.md](production-architecture.md) — browser apps: key-safe proxy architecture, media segmenting, and debugging
+- [production-architecture.md](production-architecture.md) — browser apps: client tokens, proxy option, media segmenting, and debugging
