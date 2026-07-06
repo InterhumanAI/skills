@@ -2,17 +2,23 @@
 
 Optional detail for building a real application around `wss://api.interhuman.ai/v1/stream/analyze`, where media is captured client-side (browser camera/microphone) and the API key must stay secret. If you are calling the endpoint from a trusted server-side process with a file on disk, you do not need this document — follow SKILL.md.
 
-## Rules
+## Three rules (non-negotiable)
 
-1. **Never ship the API key to the client.** The key (`ih_live_...`) is a full production credential. It must not appear in client code, JS bundles, or client-bundled environment variables (`NEXT_PUBLIC_*`, `VITE_*`, `REACT_APP_*`).
-2. **Pick one of two architectures below.** Both are valid; choose by where the analysis events should be delivered. Direct-from-browser with a client token is the simplest path. A proxy through your backend is the right choice when your backend should receive the events or the media.
-3. **Send media segments exactly as the recorder produces them** — on every path. Never re-slice, reassemble, or reinterpret the media container in transit.
+1. **Never ship the API key to the browser.** Mint a short-lived, capped **client token** server-side and hand that to the client instead.
+2. **Let the browser stream directly to Interhuman with the client token.** The token is designed for exactly this, and the API enforces its caps.
+3. **Send media segments exactly as the recorder produces them.** Never re-slice, reassemble, or reinterpret the media container in between.
 
 A naive implementation that hardcodes the API key in client code works in a local demo and leaks the credential in production. Do not generate it.
 
-## Option A: direct from the browser with a client token
+## Why you can't ship the API key
 
-The browser can open the WebSocket to Interhuman itself — safely — using a **client token**: a short-lived, capped credential your backend mints server-side with the API key.
+The stream endpoint authenticates with the API key (`ih_live_...`) as a Bearer credential on the WebSocket handshake. If that key appears anywhere in client code, it ships to the user — JS bundle, network tab, devtools. That is a leaked production credential.
+
+Also: never place the API key in a client-bundled environment variable (`NEXT_PUBLIC_*`, `VITE_*`, `REACT_APP_*`). Same leak.
+
+The key stays server-side. What the browser gets instead is a **client token**: a short-lived credential the backend mints from `POST /v1/client_tokens`, scoped and capped so that leaking it costs a few minutes of bounded usage, not the account.
+
+## The architecture
 
 ```
 browser ──1─▶ your backend ──2─POST /v1/client_tokens (API key)─▶ Interhuman
@@ -21,9 +27,14 @@ browser ──3─wss /v1/stream/analyze + client token─▶ Interhuman
 browser ◀──analysis events (JSON text)── Interhuman
 ```
 
-The token route is stateless single-request work (serverless is fine). Events are delivered to the browser; no media touches your servers.
+Two parts, one job each:
 
-Mint server-side (TypeScript SDK `@interhumanai/sdk`, or raw `POST /v1/client_tokens`):
+- **A token route on your backend** calls `POST /v1/client_tokens` with the API key and returns the minted token to the browser. Stateless, single-request work — a serverless function is fine.
+- **The browser** connects directly to `wss://api.interhuman.ai/v1/stream/analyze` with the client token, streams recorded segments up as binary frames, and receives analysis events back. The caps embedded in the token are enforced by the API itself.
+
+## Mint a client token
+
+Use the TypeScript SDK (`@interhumanai/sdk`) in the token route, or call the endpoint directly:
 
 ```typescript
 import { AuthClient } from "@interhumanai/sdk";
@@ -34,27 +45,50 @@ const token = await auth.createClientToken({
   scopes: ["interhumanai.stream"],           // default
   expiresIn: 300,                            // seconds; clamped to 60–3600
   maxDurationSeconds: 600,                   // max wall-clock session length
-  maxVideoSeconds: 600,                      // total video budget (spans upload/stream/real-time)
+  maxVideoSeconds: 600,                      // total video budget for this token
   allowedOrigins: ["https://app.example.com"],
 });
 // hand token.access_token to the browser
 ```
 
-All caps are optional but set them deliberately — they bound the damage if a token leaks. `max_concurrent` defaults to 1. Tokens can be revoked early (`POST /v1/client_tokens/revoke` / `auth.revokeClientToken(...)`); a live session is torn down on its next chunk.
+Raw HTTP equivalent: `POST https://api.interhuman.ai/v1/client_tokens` with JSON body `{"api_key": "...", "scopes": ["interhumanai.stream"], "expires_in": 300, ...}`.
 
-Connect from the browser — SDK:
+Every cap is optional, but set them deliberately — they are the blast radius if a token leaks:
+
+| Cap | Meaning | Default |
+| --- | --- | --- |
+| `expires_in` | Token time-to-live in seconds | 300 (clamped to 60–3600) |
+| `max_duration_seconds` | Max wall-clock duration of a session opened with the token | unset |
+| `max_bytes` | Max cumulative video bytes a session may send | unset |
+| `max_concurrent` | Max simultaneous sessions on one token | 1 |
+| `max_video_seconds` | Total seconds of video the token may process — spans upload, stream, and real-time combined | unset |
+| `allowed_origins` | Browser `Origin` allow-list; connections from other origins are rejected | unset |
+
+Tokens can be **revoked** early (`POST /v1/client_tokens/revoke`, or `auth.revokeClientToken(...)` in the SDK) — new requests are rejected immediately and any live session is torn down on its next chunk. Useful when a token outlives the thing it was minted for, like a user logging out mid-session.
+
+## Connect from the browser
+
+The SDK's `StreamClient` handles connection, authentication, typed events, and graceful shutdown:
 
 ```typescript
 import { StreamClient, StaticTokenProvider } from "@interhumanai/sdk";
 
-const stream = new StreamClient({ tokenProvider: new StaticTokenProvider(clientToken) });
+const clientToken = await fetch("/api/stream/session").then((r) => r.text());
+
+const stream = new StreamClient({
+  tokenProvider: new StaticTokenProvider(clientToken),
+});
+
 stream.on("signal.detected", (e) => console.log(e.data.signal_type));
+stream.on("engagement.updated", (e) => console.log(e.data));
+
 await stream.connect();
 await stream.waitForSessionReady();
 stream.updateConfig({ include: ["conversation_quality_overall"] });
+// now start recording and call stream.sendVideo(chunk) per segment
 ```
 
-Or raw WebSocket (browsers cannot set an `Authorization` header; use the subprotocol pair):
+Without the SDK: browsers cannot set an `Authorization` header on a `WebSocket`, so pass the token via the subprotocol pair the endpoint accepts:
 
 ```javascript
 const ws = new WebSocket("wss://api.interhuman.ai/v1/stream/analyze", [
@@ -62,69 +96,6 @@ const ws = new WebSocket("wss://api.interhuman.ai/v1/stream/analyze", [
   clientToken,
 ]);
 ```
-
-## Option B: proxy through your backend
-
-Choose this when your backend should be the one receiving the analysis events (server-side scoring, storage, value-add on top of the signals) or must handle the media itself. The browser streams to *your* WebSocket server, which relays to Interhuman:
-
-```
-browser ──ws──▶ proxy (holds API key) ──wss + Authorization: Bearer──▶ Interhuman
-browser ◀──events (as relayed/processed by you)── proxy ◀──events── Interhuman
-```
-
-Requirements:
-
-- **Long-lived process, never a serverless function.** The proxy owns a stateful socket for minutes. Module-level session state on serverless works on localhost (one process) and breaks deployed — requests land on different instances, producing "session not found" errors that never reproduce locally. Run it as its own small persistent service (Cloud Run, Fly.io, Railway, a VM).
-- **Relay media verbatim.** Binary segments up exactly as received; do not parse, buffer, or re-slice (see Rules, and the media section below).
-- **Authenticate the browser to the proxy** with a short-lived token passed as the WebSocket subprotocol (browsers cannot set headers). A minted client token works; so does your own HMAC-signed token:
-
-```javascript
-import { createHmac } from "node:crypto";
-
-export function mintProxyToken(sessionId) {
-  const payload = Buffer.from(
-    JSON.stringify({ sid: sessionId, exp: Date.now() + 180_000 })
-  ).toString("base64url");
-  const signature = createHmac("sha256", process.env.STREAM_TOKEN_SECRET)
-    .update(payload) // sign the base64url STRING, not the raw JSON
-    .digest("base64url");
-  return `${payload}.${signature}`;
-}
-```
-
-  Known traps: compute the HMAC over the base64url-encoded payload string on **both** sides, and note that a secret mismatch surfaces as a **silent 401 on the WS upgrade** — no body, generic browser error.
-
-Relay skeleton:
-
-```javascript
-import { WebSocket, WebSocketServer } from "ws";
-
-const wss = new WebSocketServer({ server, handleProtocols: verifyToken });
-
-wss.on("connection", (client) => {
-  const upstream = new WebSocket("wss://api.interhuman.ai/v1/stream/analyze", {
-    headers: { Authorization: `Bearer ${process.env.INTERHUMAN_API_KEY}` },
-  });
-
-  upstream.on("open", () => {
-    upstream.send(JSON.stringify({ include: ["conversation_quality_overall"] }));
-    client.send(JSON.stringify({ type: "proxy.ready" })); // your own signal
-  });
-
-  client.on("message", (data, isBinary) => {          // media up: binary, verbatim
-    if (isBinary && upstream.readyState === WebSocket.OPEN) upstream.send(data);
-  });
-
-  upstream.on("message", (data, isBinary) => {        // events down: process or relay
-    if (!isBinary && client.readyState === WebSocket.OPEN) client.send(data.toString());
-  });
-
-  client.on("close", () => upstream.close());
-  upstream.on("close", () => client.close());
-});
-```
-
-Do not send media before the upstream is ready: open the client socket, wait for the ready signal, then start recording. Time out the connect (~10–15 s) with a real error.
 
 ## Send media the way the recorder produces it
 
@@ -138,8 +109,7 @@ const recorder = new MediaRecorder(mediaStream, {
 
 recorder.addEventListener("dataavailable", async (event) => {
   if (!event.data || event.data.size === 0) return;
-  ws.send(await event.data.arrayBuffer()); // one segment = one binary frame
-  // SDK equivalent: stream.sendVideo(await event.data.arrayBuffer())
+  stream.sendVideo(await event.data.arrayBuffer()); // one segment = one binary frame
 });
 
 recorder.start(3000); // self-contained segment every 3 s (~400 KB at 1 Mbps)
@@ -153,28 +123,33 @@ What does NOT work:
 
 ## End the session cleanly
 
-Analysis events stream in throughout the recording; accumulate them as they arrive — there is no end-of-session summary. When the user stops, request a graceful shutdown instead of closing the socket: send `session.close` (SDK: `stream.requestClose()`). The server acknowledges with `session.closing` (`data.max_drain_seconds` is the longest to wait), finishes analyzing accepted video — emitting remaining envelopes plus `signal.ended` for still-active signals — then sends `session.ended` and closes with code 1000. Listen for `session.ended` (or `close`) rather than closing early, which discards trailing analysis.
+Analysis events stream in throughout the recording; accumulate them client-side as they arrive — there is no end-of-session summary to wait for.
+
+When the user stops recording, request a graceful shutdown instead of closing the socket: send `session.close` (SDK: `stream.requestClose()`). The server acknowledges with `session.closing` (`data.max_drain_seconds` is the longest to wait), finishes analyzing the video it already accepted — emitting the remaining envelopes plus `signal.ended` for still-active signals — then sends `session.ended` and closes with code 1000. Listen for `session.ended` (or `close`) rather than closing early, which discards trailing analysis.
+
+```javascript
+recorder.stop();
+stream.requestClose();
+stream.on("session.ended", () => {
+  mediaStream.getTracks().forEach((t) => t.stop());
+});
+```
 
 ## Debugging: symptom → cause
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| `401` on the WS upgrade (direct) | Client token expired/revoked, or subprotocol isn't the `access_token, <token>` pair | Mint a fresh token; use `new WebSocket(url, ["access_token", token])` |
-| Connection rejected despite valid token | Page `Origin` not in the token's `allowed_origins` | Mint with the right origins per environment |
-| Processing refused mid-session | Token's `max_video_seconds` budget exhausted | Mint a new token; size the budget to the session |
-| Bare `401` on WS upgrade (proxy) | HMAC token secret mismatch between token route and proxy | Same secret both sides; HMAC over the encoded string both sides |
-| `ih6002`, or socket drop mid-send, close `1006`, no close frame | WebSocket message too large | Timesliced 1–3 s segments, one per frame |
-| `ih5004` (malformed segment) | Container re-sliced/reassembled/truncated in transit | Send recorder-produced segments verbatim |
-| Works locally, "session not found" deployed | Session state in module scope on serverless | Persistent-process proxy |
-| Two sessions/sockets per recording in dev | React StrictMode double-invokes effects/updaters | Guard session start with a synchronous ref |
-| Test files pass, real recordings fail | Pipeline tested only on synthetic (ffmpeg) files | Test with real `MediaRecorder` output |
-
-Add a no-auth `/health` route on your backend early, returning a boolean (never the value) per required environment variable.
+| `401` on the WebSocket upgrade | Client token expired or revoked, or the subprotocol isn't the `access_token, <token>` pair | Mint a fresh token; use `new WebSocket(url, ["access_token", token])` |
+| Connection rejected despite a valid token | Page `Origin` missing from the token's `allowed_origins` | Mint the token with the right origins per environment |
+| Processing refused mid-session | Token's `max_video_seconds` budget exhausted (it spans upload, stream, and real-time) | Mint a new token; size the budget to the session length |
+| `ih6002`, or socket drops mid-send with close code `1006` and no close frame | A WebSocket message is too large — over the 32 MB cap, or large enough to be unreliable | Send small timesliced segments (1–3 s each), one per frame |
+| `ih5004` (malformed segment) | The media container was re-sliced, reassembled, or truncated between the recorder and Interhuman | Send recorder-produced segments verbatim; never rebuild the stream from parsed parts |
+| Two sessions/sockets per recording in development | React StrictMode double-invokes effects and state updaters | Guard session start with a synchronous ref check, not state |
+| Segments from test files analyze fine; real recordings fail | Pipeline only tested against synthetic (ffmpeg) files | Always test with real `MediaRecorder` output from a real browser |
 
 ## References
 
 - Client tokens API: https://interhumanai-realtime-internal.mintlify.app/api-reference/client-tokens
 - TypeScript SDK: https://interhumanai-realtime-internal.mintlify.app/sdk-reference/typescript-sdk
-- Guide: https://docs.interhuman.ai/how-to/build-with-the-stream-endpoint
 - Endpoint reference: https://docs.interhuman.ai/api-reference/stream-analyze
 - Error codes: https://docs.interhuman.ai/api-reference/error-handling
