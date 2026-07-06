@@ -163,6 +163,16 @@ If `Authorization` is not supported, connect with subprotocol auth:
 const ws = new WebSocket("wss://api.interhuman.ai/v1/stream/analyze", apiKey);
 ```
 
+## Building a Browser App (optional)
+
+If media is captured in a **browser or any untrusted client** (live camera/microphone, end-user app), do not connect the client directly to Interhuman — that leaks the API key. Read [production-architecture.md](production-architecture.md) before generating code. Non-negotiable rules:
+
+1. The API key stays server-side; the browser talks to **your** WebSocket proxy, which relays to Interhuman.
+2. The proxy is a long-lived process (Cloud Run, Fly.io, VM) — never a serverless function.
+3. Send `MediaRecorder` timesliced segments verbatim; never re-slice or reassemble media server-side.
+
+Skip this section when calling the endpoint from a trusted server-side process.
+
 ## Error Responses
 
 Errors arrive as envelopes with `type: "error"`:
@@ -189,3 +199,4 @@ Each server message should be passed through verbatim as a single JSON object.
 ## Additional Resources
 
 - [reference.md](reference.md) — v1 envelope schemas and example payloads
+- [production-architecture.md](production-architecture.md) — browser apps: key-safe proxy architecture, media segmenting, and debugging
